@@ -1,4 +1,8 @@
 #include "IRremote.h"
+int motorAold = 0;
+int motorBold = 0;
+int motorA = 0;
+int motorB = 0;
 
 int receiver = 2; // Signal Pin of IR receiver to Arduino Digital Pin 11
 
@@ -17,19 +21,24 @@ void setup()   /*----( SETUP: RUNS ONCE )----*/
   pinMode(9, OUTPUT); //Initiates Brake Channel A pin
 
   //Setup Channel B - MOTOR 2
-  pinMode(13, OUTPUT); //Initiates Motor Channel A pin
-  pinMode(8, OUTPUT); //Initiates Brake Channel A pin
+  pinMode(13, OUTPUT); //Initiates Motor Channel B pin
+  pinMode(8, OUTPUT); //Initiates Brake Channel B pin
 }/*--(end setup )---*/
 
 
 void loop()   /*----( LOOP: RUNS CONSTANTLY )----*/
 {
   if (irrecv.decode(&results)) // have we received an IR signal?
-
   {
-    translateIR(); 
+    translateIR();
+    updateMotors();
+    delay(50); // Do not get immediate repeat
     irrecv.resume(); // receive the next value
-  }  
+  } else {
+    motorA = 0;
+    motorB = 0;
+    updateMotors();
+  }
 }/* --(end main loop )-- */
 
 /*-----( Function )-----*/
@@ -54,73 +63,70 @@ void translateIR() // takes action based on IR code received
   case 0xFF30CF: Serial.println(" 4");    break;
   case 0xFF18E7:
     Serial.println(" FORWARD");
-    forwardA();
-    forwardB();
+    motorA = 1;
+    motorB = -1;
+    motorAold = 1;
+    motorBold = -1;
     break;
   case 0xFF7A85: Serial.println(" 6");    break;
-  case 0xFF10EF: Serial.println(" LEFT");    break;
-  case 0xFF38C7: Serial.println(" -OK-");    break;
-  case 0xFF5AA5: Serial.println(" RIGHT");    break;
+  case 0xFF10EF:
+    Serial.println(" LEFT");
+    motorA = -1;
+    motorB = -1;
+    motorAold = -1;
+    motorBold = -1;
+    break;
+  case 0xFF38C7:
+    Serial.println(" -OK-");
+    break;
+  case 0xFF5AA5:
+    Serial.println(" RIGHT");
+    motorA = 1;
+    motorB = 1;
+    motorAold = 1;
+    motorBold = 1;
+    break;
   case 0xFF42BD: Serial.println(" *");    break;
   case 0xFF4AB5:
     Serial.println(" REVERSE");
-    reverseA();
-    reverseB();
+    motorA = -1;
+    motorB = 1;
+    motorAold = -1;
+    motorBold = 1;
     break;
   case 0xFF52AD: Serial.println(" #");    break;
-  case 0xFFFFFFFF: Serial.println(" REPEAT");break;  
+  case 0xFFFFFFFF: 
+    Serial.println(" REPEAT");
+    motorA = motorAold;
+    motorB = motorBold;
+    break;  
 
   default: 
     Serial.println(" other button   ");
 
   }// End Case
-
-  delay(500); // Do not get immediate repeat
-
-
-} 
-
-void forwardA() {
-  //forward @ full speed
-  digitalWrite(12, HIGH); //Establishes forward direction of Channel A
-  digitalWrite(9, LOW);   //Disengage the Brake for Channel A
-  analogWrite(3, 255);   //Spins the motor on Channel A at full speed
 }
 
-void stopA() {
-  digitalWrite(12, HIGH);//Establishes forward direction of Channel A
-  digitalWrite(9, HIGH); //Engage the Brake for Channel A
-  analogWrite(3, 255);   //Spins the motor on Channel A at full speed
+void updateMotors() {
+  updateMotor(12, 9, 3, motorA);
+  updateMotor(13, 8, 11, motorB);
 }
 
-void reverseA() {
-  digitalWrite(12, LOW); //Establishes reverse direction of Channel A
-  digitalWrite(9, LOW);  //Disengage the Brake for Channel A
-  analogWrite(3, 255);   //Spins the motor on Channel A at full speed
+void updateMotor(int dirPin, int brakePin, int speedPin, int value) {
+  if (value < 0) {
+    digitalWrite(dirPin, LOW);
+    digitalWrite(brakePin, LOW);
+    analogWrite(speedPin, 255);
+  } else if (value > 0) {
+    digitalWrite(dirPin, HIGH);
+    digitalWrite(brakePin, LOW);
+    analogWrite(speedPin, 255);
+  } else {
+    digitalWrite(dirPin, LOW);
+    digitalWrite(brakePin, HIGH);
+    analogWrite(speedPin, 255);
+  }
 }
-
-void forwardB() {
-  //forward @ full speed
-  digitalWrite(13, HIGH); //Establishes forward direction of Channel B
-  digitalWrite(8, LOW);   //Disengage the Brake for Channel B
-  analogWrite(11, 255);   //Spins the motor on Channel B at full speed
-}
-
-void stopB() {
-  digitalWrite(13, HIGH); //Establishes forward direction of Channel B
-  digitalWrite(8, HIGH);  //Engage the Brake for Channel B
-  analogWrite(11, 255);   //Spins the motor on Channel B at full speed
-}
-
-void reverseB() {
-  digitalWrite(13, LOW); //Establishes reverse direction of Channel A
-  digitalWrite(8, LOW);  //Disengage the Brake for Channel A
-  analogWrite(11, 255);   //Spins the motor on Channel A at full speed
-}
-
-
-
-
 
 
 
